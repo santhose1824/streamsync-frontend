@@ -321,24 +321,4 @@ class AuthRepository {
     throw ApiException(_parseErrorMessage(res), statusCode: res.statusCode, details: {'body': res.body});
   }
 
-  /// Send test notification: POST /notifications/send-test
-  Future<void> sendTestNotification() async {
-    final uri = Uri.parse('$_baseUrl/notifications/send-test');
-    http.Response res;
-    try {
-      res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({}), // adjust payload if backend expects something
-      );
-    } on SocketException {
-      throw ApiException('No internet connection');
-    } catch (e) {
-      throw ApiException('Network error');
-    }
-
-    if (res.statusCode == 200 || res.statusCode == 204) return;
-    throw ApiException(_parseErrorMessage(res), statusCode: res.statusCode, details: {'body': res.body});
-  }
-
 }
