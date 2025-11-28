@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/network/api_exception.dart';
+import 'package:frontend/core/services/awesome_notification_service.dart';
 import 'package:frontend/features/auth/bloc/auth_bloc.dart';
 import 'package:frontend/features/auth/repositories/auth_repository.dart';
+import 'package:frontend/features/notifications/bloc/notification_bloc.dart';
+import 'package:frontend/features/notifications/bloc/notification_event.dart';
+import 'package:frontend/features/notifications/repositories/notifications_repositories.dart';
 import 'package:frontend/widgets/auth_text_field.dart';
 import 'package:frontend/widgets/error_box.dart';
 import 'package:frontend/widgets/option_card.dart';
@@ -72,18 +76,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _onSendTestNotification() async {
-    setState(() => _loading = true);
-    try {
-      await widget.authRepository.sendTestNotification();
-      _showSnackbar('Test notification sent');
-    } on ApiException catch (api) {
-      _showSnackbar(api.message, error: true);
-    } catch (_) {
-      _showSnackbar('Failed to send test notification', error: true);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    await AwesomeNotificationService.showTestNotification();
+
+    // Test 2: Send via backend
+    context.read<NotificationsBloc>().add(
+      SendTestNotificationRequested(
+        title: 'Test from Flutter ${DateTime.now().hour}:${DateTime.now().minute}',
+        body: 'Testing notification system',
+        idempotencyKey: 'test-${DateTime.now().millisecondsSinceEpoch}',
+      ),
+    );
   }
+
 
   Future<void> _onUpdateProfile() async {
     final nameCtrl = TextEditingController(text: context.read<AuthBloc>().state.user?.name ?? '');

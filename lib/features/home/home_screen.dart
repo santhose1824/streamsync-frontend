@@ -4,7 +4,9 @@ import 'package:frontend/features/auth/bloc/auth_bloc.dart';
 import 'package:frontend/features/auth/presentation/profile_screen.dart';
 import 'package:frontend/features/auth/repositories/auth_repository.dart';
 import 'package:frontend/features/downloads/downloads.dart';
-import 'package:frontend/features/notifications/notifications.dart';
+import 'package:frontend/features/notifications/bloc/notification_bloc.dart';
+import 'package:frontend/features/notifications/bloc/notification_event.dart';
+import 'package:frontend/features/notifications/presentation/notifications.dart';
 import 'package:frontend/features/videos/video.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,7 +20,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
 
-  // Titles and icons for the bottom nav
   static const _tabs = <Map<String, Object>>[
     {'label': 'Videos', 'icon': Icons.play_circle_outline, 'activeIcon': Icons.play_circle},
     {'label': 'Downloads', 'icon': Icons.download_outlined, 'activeIcon': Icons.download},
@@ -27,32 +28,49 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // ✅ Load notifications when screen loads
+    context.read<NotificationsBloc>().add(const NotificationsRequested());
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
 
   Future<bool> _onWillPop() async {
-    // If not on first tab, go back to first tab on back press
     if (_currentIndex != 0) {
       setState(() => _currentIndex = 0);
-      _pageController.jumpToPage(0);
-      return false; // don't pop app
+      _pageController.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      return false;
     }
-    return true; // allow app to close
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     final user = context.select((AuthBloc bloc) => bloc.state.user);
     final authRepo = RepositoryProvider.of<AuthRepository>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final indicatorWidth = (screenWidth - 32) / 4;
+
+    // ✅ FIXED: Get unread notification count correctly
+    final unreadCount = context.select(
+          (NotificationsBloc bloc) => bloc.state.unreadCount,
+    );
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
         body: Column(
           children: [
-            // Flexible page area
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -70,26 +88,38 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
 
-        // Modern Bottom navigation bar with gradient indicator
+        // Premium Professional Bottom Navigation with Badge
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF101426) : Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: isDark
+                    ? const Color(0xFF1F2433)
+                    : const Color(0xFFE6E9F2),
+                width: 1,
+              ),
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
+                color: isDark
+                    ? Colors.black.withOpacity(0.2)
+                    : Colors.black.withOpacity(0.04),
+                blurRadius: 16,
+                offset: const Offset(0, -4),
               ),
             ],
           ),
           child: SafeArea(
+            top: false,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(_tabs.length, (index) {
                   final tab = _tabs[index];
                   final isSelected = _currentIndex == index;
+                  final isNotificationTab = index == 2; // Notifications tab
 
                   return Expanded(
                     child: InkWell(
@@ -98,63 +128,120 @@ class _HomeScreenState extends State<HomeScreen> {
                         _pageController.animateToPage(
                           index,
                           duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
+                          curve: Curves.easeInOut,
                         );
                       },
-                      borderRadius: BorderRadius.circular(12),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: isSelected
-                              ? LinearGradient(
-                            colors: [
-                              const Color(0xFF667eea).withOpacity(0.15),
-                              const Color(0xFF764ba2).withOpacity(0.15),
-                            ],
-                          )
-                              : null,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      borderRadius: BorderRadius.circular(16),
+                      splashColor: (isDark
+                          ? const Color(0xFF8B7FFF)
+                          : const Color(0xFF6C63FF))
+                          .withOpacity(0.1),
+                      highlightColor: (isDark
+                          ? const Color(0xFF8B7FFF)
+                          : const Color(0xFF6C63FF))
+                          .withOpacity(0.05),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              isSelected
-                                  ? (tab['activeIcon'] as IconData)
-                                  : (tab['icon'] as IconData),
-                              color: isSelected
-                                  ? const Color(0xFF667eea)
-                                  : Colors.grey.shade600,
-                              size: 26,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              tab['label'] as String,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? const Color(0xFF667eea)
-                                    : Colors.grey.shade600,
-                                fontSize: 12,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                              ),
-                            ),
-                            if (isSelected) ...[
-                              const SizedBox(height: 4),
-                              Container(
-                                height: 3,
-                                width: 20,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF667eea),
-                                      Color(0xFF764ba2),
-                                    ],
+                            // Icon with badge (for notifications)
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                TweenAnimationBuilder<double>(
+                                  tween: Tween(
+                                    begin: isSelected ? 1.0 : 0.8,
+                                    end: isSelected ? 1.0 : 0.8,
                                   ),
-                                  borderRadius: BorderRadius.circular(2),
+                                  duration: const Duration(milliseconds: 200),
+                                  builder: (context, scale, child) {
+                                    return Transform.scale(
+                                      scale: scale,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? (isDark
+                                              ? const Color(0xFF8B7FFF).withOpacity(0.15)
+                                              : const Color(0xFF6C63FF).withOpacity(0.1))
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          isSelected
+                                              ? (tab['activeIcon'] as IconData)
+                                              : (tab['icon'] as IconData),
+                                          size: 24,
+                                          color: isSelected
+                                              ? (isDark
+                                              ? const Color(0xFF8B7FFF)
+                                              : const Color(0xFF6C63FF))
+                                              : (isDark
+                                              ? const Color(0xFF98A0B3)
+                                              : const Color(0xFF6B7280)),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
+
+                                // ✅ Badge for unread notifications
+                                if (isNotificationTab && unreadCount > 0)
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isDark ? const Color(0xFF101426) : Colors.white,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 18,
+                                        minHeight: 18,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            // Label with color transition
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 200),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                color: isSelected
+                                    ? (isDark
+                                    ? const Color(0xFF8B7FFF)
+                                    : const Color(0xFF6C63FF))
+                                    : (isDark
+                                    ? const Color(0xFF98A0B3)
+                                    : const Color(0xFF6B7280)),
+                                letterSpacing: 0.3,
                               ),
-                            ],
+                              child: Text(
+                                tab['label'] as String,
+                                maxLines: 1,
+                              ),
+                            ),
                           ],
                         ),
                       ),

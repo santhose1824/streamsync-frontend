@@ -45,6 +45,7 @@ dependencies:
   shared_preferences:
   firebase_core:
   firebase_messaging:
+  awesome_notifications:
   
 
 
