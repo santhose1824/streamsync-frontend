@@ -11,11 +11,16 @@ import 'features/auth/repositories/auth_repository.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/home/home_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Preserve native splash until we explicitly remove it
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
